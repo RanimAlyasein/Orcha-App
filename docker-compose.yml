@@ -1,0 +1,89 @@
+# ─── Orcha — Docker Compose ───────────────────────────────────────────────────
+# Runs 3 services: postgres → backend → frontend
+#
+# First-time setup:
+#   docker compose up --build -d
+#   docker compose exec backend npm run db:seed
+#   Open http://localhost:8080
+#
+# Demo credentials:
+#   manager@orcha.demo / password123  (Company Admin → /dashboard)
+#   admin@orcha.demo   / password123  (System Admin  → /admin)
+#
+# Production: override JWT_SECRET, POSTGRES_PASSWORD, CORS_ORIGINS and
+# SMTP_* via environment variables or a .env file at the repo root.
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL database ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: orcha-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orcha
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchasecret}
+      POSTGRES_DB: orcha
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Postgres is internal — no port exposed to host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orcha -d orcha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Backend API ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./orcha
+      dockerfile: Dockerfile
+    container_name: orcha-backend
+    restart: unless-stopped
+    # Backend is internal — accessed only through the nginx proxy.
+    # Uncomment the port below only for local debugging.
+    # ports:
+    #   - "3010:3010"
+    environment:
+      DATABASE_URL: postgresql://orcha:${POSTGRES_PASSWORD:-orchasecret}@postgres:5432/orcha
+      JWT_SECRET: ${JWT_SECRET:-orcha-docker-jwt-secret-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: 3010
+      NODE_ENV: ${NODE_ENV:-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@orcha.app}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3010/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Frontend (nginx) ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./orcha-frontend
+      dockerfile: Dockerfile
+    container_name: orcha-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    environment:
+      BACKEND_URL: http://backend:3010
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local

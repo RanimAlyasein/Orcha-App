@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// All enum-like fields stored as String for DB compatibility.
+// Valid values enforced in service layer.
+// SystemRole: SYSTEM_ADMIN | MEMBER
+// OrgRole: COMPANY_ADMIN | MANAGER | MEMBER
+// AgentType: CALL_CENTER | SALES | SUPPORT | BOOKING | MARKETING | CUSTOM
+// AgentStatus: ACTIVE | IDLE | OFFLINE | MAINTENANCE
+// ConnectionStatus: CONNECTED | DISCONNECTED | ERROR | PAUSED | PENDING_SETUP
+// AgentProvider: WHATSAPP_BOT | MESSENGER_BOT | WEBSITE_CHATBOT | VOICE_AGENT | EMAIL_BOT | CUSTOM_API | DEMO_CHANNEL | OTHER
+// EventType: MESSAGE_RECEIVED | MESSAGE_SENT | TASK_STARTED | TASK_COMPLETED | TASK_FAILED | OUTPUT_GENERATED | STATUS_CHANGE | ERROR | CUSTOM
+// EventStatus: RECEIVED | PROCESSED | FAILED
+// ReviewStatus: PENDING | APPROVED | REJECTED | EDITED | SENT
+// TaskStatus: TODO | IN_PROGRESS | DONE | FAILED | PENDING_REVIEW
+// Priority: LOW | MEDIUM | HIGH | URGENT
+// CustomerStatus: LEAD | PROSPECT | ACTIVE | INACTIVE | CHURNED
+
+model User {
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password           String
+  role               String    @default("MEMBER")
+  isVerified         Boolean   @default(false)
+  verificationToken  String?
+  verificationExpiry DateTime?
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  memberships      Membership[]
+  createdAgents    Agent[]      @relation("AgentCreatedBy")
+  createdTasks     Task[]       @relation("TaskCreatedBy")
+  assignedTasks    Task[]       @relation("TaskAssignedTo")
+  createdCustomers Customer[]
+  auditLogs        AuditLog[]
+  sentInvitations  Invitation[] @relation("InvitationSentBy")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("starter")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships  Membership[]
+  agents       Agent[]
+  tasks        Task[]
+  customers    Customer[]
+  activityLogs ActivityLog[]
+  auditLogs    AuditLog[]
+  invitations  Invitation[]
+  reviewItems  ReviewItem[]
+}
+
+model Membership {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  role           String   @default("MEMBER")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([userId, organizationId])
+}
+
+model Agent {
+  id               String    @id @default(uuid())
+  name             String
+  type             String    @default("CUSTOM")
+  description      String?
+  status           String    @default("IDLE")
+  language         String    @default("English")
+  instructions     String?
+  provider         String?
+  channel          String?
+  connectionStatus String    @default("PENDING_SETUP")
+  reviewRequired   Boolean   @default(false)
+  lastEventAt      DateTime?
+  apiKey           String?
+  isActive         Boolean   @default(true)
+  organizationId   String
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  createdBy    User          @relation("AgentCreatedBy", fields: [createdById], references: [id])
+  tasks        Task[]
+  activityLogs ActivityLog[]
+  agentEvents  AgentEvent[]
+  reviewItems  ReviewItem[]
+}
+
+model AgentEvent {
+  id              String   @id @default(uuid())
+  agentId         String
+  organizationId  String
+  eventType       String   @default("CUSTOM")
+  channel         String?
+  status          String   @default("RECEIVED")
+  customerName    String?
+  customerContact String?
+  message         String?
+  output          String?
+  metadata        String?
+  requiresReview  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id])
+}
+
+model ReviewItem {
+  id             String    @id @default(uuid())
+  agentId        String
+  organizationId String
+  agentEventId   String?
+  status         String    @default("PENDING")
+  originalOutput String?
+  editedOutput   String?
+  reviewNote     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  agent        Agent        @relation(fields: [agentId], references: [id])
+}
+
+model Task {
+  id             String    @id @default(uuid())
+  title          String
+  description    String?
+  status         String    @default("TODO")
+  priority       String    @default("MEDIUM")
+  agentId        String?
+  organizationId String
+  createdById    String
+  assignedToId   String?
+  dueDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  agent        Agent?        @relation(fields: [agentId], references: [id])
+  createdBy    User          @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?         @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  activityLogs ActivityLog[]
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  name           String
+  email          String?
+  phone          String?
+  company        String?
+  status         String   @default("LEAD")
+  notes          String?
+  organizationId String
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+}
+
+model ActivityLog {
+  id             String   @id @default(uuid())
+  eventType      String
+  message        String
+  agentId        String?
+  taskId         String?
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  agent        Agent?       @relation(fields: [agentId], references: [id])
+  task         Task?        @relation(fields: [taskId], references: [id])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  action         String
+  actorId        String?
+  organizationId String?
+  metadata       String?
+  createdAt      DateTime @default(now())
+
+  actor        User?         @relation(fields: [actorId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model Invitation {
+  id             String    @id @default(uuid())
+  email          String
+  token          String    @unique
+  role           String    @default("MEMBER")
+  organizationId String
+  invitedById    String
+  acceptedAt     DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  invitedBy    User         @relation("InvitationSentBy", fields: [invitedById], references: [id])
+}

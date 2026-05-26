@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+prisma/dev.db
+prisma/dev.db-journal
+.git
+.gitignore
+*.md
+ARCHITECTURE_NOTES.md
+DEMO_SCRIPT.md
+CONTRIBUTIONS.md
+coverage
+.nyc_output
