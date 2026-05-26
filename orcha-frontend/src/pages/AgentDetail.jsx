@@ -1,5 +1,5 @@
-// Agent detail page — shows a single agent's info, tasks, events, and webhook integration details
-import { useState } from 'react';
+// Agent detail page — shows a single agent's info, tasks, events, weekly schedule, and webhook integration details
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { agentApi } from '../api/agentApi';
 import { taskApi } from '../api/taskApi';
@@ -10,15 +10,188 @@ import Modal from '../components/Modal';
 
 function fmt(d) { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 function fmtT(d) { return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function fmtTime(d) { return new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
 
 const INIT_TASK = { title: '', description: '', status: 'TODO', priority: 'MEDIUM' };
 
 const TABS = [
-  { id: 'events', label: 'Events' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'logs', label: 'Activity Log' },
+  { id: 'events',      label: 'Events' },
+  { id: 'tasks',       label: 'Tasks' },
+  { id: 'schedule',    label: 'Weekly Schedule' },
+  { id: 'logs',        label: 'Activity Log' },
   { id: 'integration', label: 'Integration Setup' },
 ];
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const EVENT_COLORS = {
+  MESSAGE_RECEIVED: { bg: '#e8f5e9', color: '#2e7d32', label: 'Received' },
+  MESSAGE_SENT:     { bg: '#e3f2fd', color: '#1565c0', label: 'Sent' },
+  TASK_STARTED:     { bg: '#fff8e1', color: '#f57f17', label: 'Started' },
+  TASK_COMPLETED:   { bg: '#e8f5e9', color: '#2e7d32', label: 'Completed' },
+  OUTPUT_GENERATED: { bg: '#f3e5f5', color: '#6a1b9a', label: 'Output' },
+  STATUS_CHANGE:    { bg: '#fce4ec', color: '#880e4f', label: 'Status' },
+  ERROR:            { bg: '#ffebee', color: '#c62828', label: 'Error' },
+  CUSTOM:           { bg: '#f5f5f5', color: '#424242', label: 'Custom' },
+};
+
+const PRIORITY_COLORS = {
+  URGENT: '#c62828',
+  HIGH:   '#e65100',
+  MEDIUM: '#f9a825',
+  LOW:    '#558b2f',
+};
+
+function getWeekDays(offset = 0) {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function isSameDay(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+}
+
+function WeekCalendar({ events, tasks }) {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const days = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
+  const today = new Date();
+
+  const weekStart = days[0];
+  const weekEnd = days[6];
+  const weekLabel = weekOffset === 0 ? 'This week'
+    : weekOffset === -1 ? 'Last week'
+    : weekOffset === 1 ? 'Next week'
+    : `${weekStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – ${weekEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+
+  const eventsByDay = days.map(day =>
+    (events || []).filter(e => isSameDay(new Date(e.createdAt), day))
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  );
+
+  const tasksByDay = days.map(day =>
+    (tasks || []).filter(t => isSameDay(new Date(t.createdAt), day))
+  );
+
+  return (
+    <div className="card">
+      {/* Header */}
+      <div className="card-header">
+        <span className="card-title">Weekly Schedule</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setWeekOffset(w => w - 1)}>←</button>
+          <span style={{ fontSize: 13, fontWeight: 600, minWidth: 100, textAlign: 'center' }}>{weekLabel}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setWeekOffset(w => w + 1)}>→</button>
+          {weekOffset !== 0 && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setWeekOffset(0)}>Today</button>
+          )}
+        </div>
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(130px, 1fr))', gap: 1, background: 'var(--border)', minWidth: 700 }}>
+          {/* Day headers */}
+          {days.map((day, i) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div key={i} style={{
+                background: isToday ? 'var(--green)' : 'var(--surface)',
+                padding: '10px 12px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? '#fff' : 'var(--mid)' }}>{DAY_NAMES[i]}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: isToday ? '#fff' : 'var(--text)', lineHeight: 1.3 }}>
+                  {day.getDate()}
+                </div>
+                <div style={{ fontSize: 11, color: isToday ? 'rgba(255,255,255,0.8)' : 'var(--light)' }}>
+                  {day.toLocaleDateString('en-GB', { month: 'short' })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Day cells */}
+          {days.map((day, i) => {
+            const dayEvents = eventsByDay[i];
+            const dayTasks = tasksByDay[i];
+            const isEmpty = dayEvents.length === 0 && dayTasks.length === 0;
+
+            return (
+              <div key={i} style={{
+                background: 'var(--white)',
+                minHeight: 160,
+                padding: '8px 6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}>
+                {isEmpty && (
+                  <div style={{ fontSize: 11, color: 'var(--light)', textAlign: 'center', marginTop: 24 }}>—</div>
+                )}
+
+                {dayTasks.map(task => (
+                  <div key={`t-${task.id}`} style={{
+                    fontSize: 11,
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    background: '#fff8e1',
+                    borderLeft: `3px solid ${PRIORITY_COLORS[task.priority] || '#ccc'}`,
+                    lineHeight: 1.3,
+                  }}>
+                    <div style={{ fontWeight: 600, color: '#5d4037', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {task.title}
+                    </div>
+                    <div style={{ color: '#8d6e63', marginTop: 1 }}>{task.status.replace('_', ' ')}</div>
+                  </div>
+                ))}
+
+                {dayEvents.map(ev => {
+                  const style = EVENT_COLORS[ev.eventType] || EVENT_COLORS.CUSTOM;
+                  return (
+                    <div key={`e-${ev.id}`} style={{
+                      fontSize: 11,
+                      padding: '4px 6px',
+                      borderRadius: 4,
+                      background: style.bg,
+                      borderLeft: `3px solid ${style.color}`,
+                      lineHeight: 1.3,
+                    }}>
+                      <div style={{ fontWeight: 600, color: style.color }}>{fmtTime(ev.createdAt)}</div>
+                      <div style={{ color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.customerName || style.label}
+                      </div>
+                      <div style={{ color: 'var(--light)', fontSize: 10 }}>{ev.eventType.replace(/_/g, ' ')}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--light)', marginRight: 4 }}>Legend:</span>
+        <span style={{ fontSize: 11, background: '#fff8e1', borderLeft: '3px solid #f57f17', padding: '2px 6px', borderRadius: 3 }}>Tasks</span>
+        {Object.entries(EVENT_COLORS).slice(0, 4).map(([key, val]) => (
+          <span key={key} style={{ fontSize: 11, background: val.bg, color: val.color, borderLeft: `3px solid ${val.color}`, padding: '2px 6px', borderRadius: 3 }}>
+            {val.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AgentDetail() {
   const { id } = useParams();
@@ -37,6 +210,8 @@ export default function AgentDetail() {
   const { data: tasks, meta: tMeta, loading: tLoading, refetch: refetchTasks } = useFetch(() => agentApi.getTasks(id, taskPage), [id, taskPage]);
   const { data: logs, meta: lMeta, loading: lLoading } = useFetch(() => agentApi.getLogs(id, logPage), [id, logPage]);
   const { data: events, meta: eMeta, loading: eLoading } = useFetch(() => agentApi.getEvents(id, eventsPage), [id, eventsPage]);
+  const { data: allEvents } = useFetch(() => agentApi.getEvents(id, 1, 100), [id]);
+  const { data: allTasks } = useFetch(() => agentApi.getTasks(id, 1, 100), [id]);
   const { data: integration, loading: iLoading } = useFetch(() => agentApi.getIntegration(id), [id]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -189,6 +364,10 @@ export default function AgentDetail() {
               </>
             )}
           </div>
+        )}
+
+        {tab === 'schedule' && (
+          <WeekCalendar events={allEvents} tasks={allTasks} />
         )}
 
         {tab === 'logs' && (

@@ -7,8 +7,8 @@ export const agentApi = {
   create: (data) => client.post('/agents', data),
   update: (id, data) => client.put(`/agents/${id}`, data),
   delete: (id) => client.delete(`/agents/${id}`),
-  getTasks: (id, page = 1) => client.get(`/agents/${id}/tasks`, { params: { page } }),
+  getTasks: (id, page = 1, limit = 20) => client.get(`/agents/${id}/tasks`, { params: { page, limit } }),
   getLogs: (id, page = 1) => client.get(`/agents/${id}/logs`, { params: { page } }),
-  getEvents: (id, page = 1) => client.get(`/agents/${id}/events`, { params: { page } }),
+  getEvents: (id, page = 1, limit = 20) => client.get(`/agents/${id}/events`, { params: { page, limit } }),
   getIntegration: (id) => client.get(`/agents/${id}/integration`),
 };
