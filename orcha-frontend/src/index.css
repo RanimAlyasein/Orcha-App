@@ -1251,7 +1251,7 @@ tbody tr { transition: background .1s; }
   .main-content { width: 100%; min-width: 0; }
 
   /* Topbar: reduce padding, hide subtitle to save space */
-  .topbar { padding: 0 14px; height: 52px; }
+  .topbar { padding: 10px 14px; height: auto; min-height: 52px; }
   .topbar-sub { display: none; }
   .topbar-actions, .card-actions { flex-wrap: wrap; gap: 8px; }
 
@@ -1291,6 +1291,14 @@ tbody tr { transition: background .1s; }
 
   /* Cards */
   .card-header { flex-wrap: wrap; gap: 8px; }
+  .card-body { padding: 14px; }
+  .stat-card { padding: 14px 16px 12px; }
+  .loading { padding: 32px 16px; }
+
+  /* Review queue: tighter padding on mobile */
+  .rq-header { padding: 10px 14px; }
+  .rq-body { padding: 10px 14px; }
+  .rq-output { padding: 10px 12px; }
 
   /* Filter tabs wrap */
   .filter-tabs { flex-wrap: wrap; }
@@ -1328,4 +1336,12 @@ tbody tr { transition: background .1s; }
   /* Review queue actions stack */
   .rq-actions { flex-direction: column; }
   .rq-btn-approve, .rq-btn-edit, .rq-btn-reject, .rq-btn-sent { width: 100%; justify-content: center; }
+
+  /* Tighter card/stat padding on very small phones */
+  .card-body { padding: 10px 12px; }
+  .stat-card { padding: 12px; }
+
+  /* Auth pages: reduce padding so form fields have enough room */
+  .auth-page { padding: 16px; }
+  .auth-card { padding: 24px; }
 }
