@@ -37,12 +37,14 @@ export default function Team() {
   };
 
   const handleRoleChange = async (memberId, role) => {
-    try { await teamApi.updateRole(memberId, role); mRefetch(); } catch { /* ignore */ }
+    try { await teamApi.updateRole(memberId, role); mRefetch(); }
+    catch (err) { toast(err.response?.data?.error?.message || 'Could not update role.', 'error'); mRefetch(); }
   };
 
   const handleRemove = async (memberId) => {
     if (!confirm('Remove this member from the workspace?')) return;
-    try { await teamApi.removeMember(memberId); mRefetch(); } catch { /* ignore */ }
+    try { await teamApi.removeMember(memberId); mRefetch(); }
+    catch (err) { toast(err.response?.data?.error?.message || 'Could not remove member.', 'error'); }
   };
 
   return (

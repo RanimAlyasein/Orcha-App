@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { taskApi } from '../api/taskApi';
 import { agentApi } from '../api/agentApi';
 import { useFetch } from '../hooks/useFetch';
+import { useToast } from '../context/ToastContext';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import Modal from '../components/Modal';
@@ -37,6 +38,7 @@ export default function Tasks() {
   const [form, setForm]           = useState(INIT);
   const [formError, setFormError] = useState(null);
   const [saving, setSaving]       = useState(false);
+  const toast = useToast();
 
   const filters = {};
   if (statusFilter)   filters.status   = statusFilter;
@@ -77,8 +79,9 @@ export default function Tasks() {
     try {
       await taskApi.updateStatus(taskId, newStatus);
       refetch();
-    } catch {
-      // silently ignore
+    } catch (err) {
+      toast(err.response?.data?.error?.message || 'Could not update status.', 'error');
+      refetch();
     }
   };
 

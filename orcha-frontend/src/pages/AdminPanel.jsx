@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { adminApi } from '../api/adminApi';
 import { useFetch } from '../hooks/useFetch';
+import { useToast } from '../context/ToastContext';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import ErrorBox from '../components/ErrorBox';
@@ -21,14 +22,17 @@ export default function AdminPanel() {
   const { data: orgs, meta: oMeta, loading: oLoading, error: oError, refetch: oRefetch } = useFetch(
     () => adminApi.getOrgs(oPage), [oPage]
   );
+  const toast = useToast();
 
   const handleToggleUser = async (userId, currentStatus) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-    try { await adminApi.updateUserStatus(userId, newStatus); uRefetch(); } catch { /* ignore */ }
+    try { await adminApi.updateUserStatus(userId, newStatus); uRefetch(); }
+    catch (err) { toast(err.response?.data?.error?.message || 'Could not update user status.', 'error'); }
   };
 
   const handleToggleOrg = async (orgId, currentIsActive) => {
-    try { await adminApi.updateOrgStatus(orgId, !currentIsActive); oRefetch(); } catch { /* ignore */ }
+    try { await adminApi.updateOrgStatus(orgId, !currentIsActive); oRefetch(); }
+    catch (err) { toast(err.response?.data?.error?.message || 'Could not update organization status.', 'error'); }
   };
 
   return (

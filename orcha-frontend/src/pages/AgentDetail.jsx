@@ -217,10 +217,14 @@ export default function AgentDetail() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const close = () => { if (!saving) { setShowModal(false); setForm(INIT_TASK); setFormError(null); } };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard?.writeText(text);
-    setKeyCopied(true);
-    setTimeout(() => setKeyCopied(false), 2000);
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    } catch {
+      // clipboard unavailable or permission denied — don't show "Copied!"
+    }
   };
 
   const handleCreateTask = async (e) => {

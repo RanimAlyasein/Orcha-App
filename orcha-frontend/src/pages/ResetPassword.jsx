@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/authApi';
 
@@ -10,6 +10,9 @@ export default function ResetPassword() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +22,7 @@ export default function ResetPassword() {
     try {
       await authApi.resetPassword(token, password);
       setDone(true);
-      setTimeout(() => navigate('/login'), 2500);
+      timerRef.current = setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Reset failed. The link may have expired.');
     } finally {
