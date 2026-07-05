@@ -827,7 +827,9 @@
 @media (max-width: 900px) {
   .lp-hero-inner { grid-template-columns: 1fr; gap: 56px; }
   .lp-hero-copy { max-width: 100%; }
-  .lp-hero-vis  { max-width: 640px; margin-inline: auto; }
+  /* min-width:0 lets the grid item shrink below content's intrinsic size;
+     overflow:hidden clips any remaining overflow from the mock screen */
+  .lp-hero-vis  { max-width: 640px; margin-inline: auto; min-width: 0; overflow: hidden; }
   .lp-feat-row  { grid-template-columns: 1fr; gap: 48px; padding-block: 72px; }
   .lp-feat-row-alt .lp-feat-copy,
   .lp-feat-row-alt .lp-feat-vis { order: 0; }
@@ -879,6 +881,8 @@
 }
 
 @media (max-width: 480px) {
+  /* Mock screen is too compressed at this width to be useful */
+  .lp-hero-vis { display: none; }
   .lp-hero-h1 { font-size: 32px; }
   .lp-stats-grid { grid-template-columns: 1fr; }
   .lp-stat-cell  { border-right: none; border-bottom: 1px solid var(--dark-border); }
