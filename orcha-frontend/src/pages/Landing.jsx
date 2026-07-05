@@ -840,13 +840,6 @@ export default function Landing() {
                     <small>Dashboard → Agents, Review Queue, Tasks, Customers, Activity Logs</small>
                   </div>
                 </div>
-                <div className="lp-demo-row">
-                  <span className="lp-demo-pill lp-demo-pill-a">System Admin</span>
-                  <div className="lp-demo-info">
-                    <code>admin@orcha.demo</code>
-                    <small>Admin panel → All users and organisation management</small>
-                  </div>
-                </div>
                 <div className="lp-demo-pw">Shared password: <code>password123</code></div>
               </div>
             )}

@@ -62,7 +62,6 @@ export default function Login() {
         <div className="auth-demo">
           <strong>Demo credentials</strong>
           <div>manager@orcha.demo / password123 (Company Admin)</div>
-          <div style={{ fontSize: 11, color: 'var(--light)', marginTop: 2 }}>admin@orcha.demo / password123 (System Admin)</div>
         </div>
       </div>
     </div>
